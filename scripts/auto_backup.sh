@@ -27,7 +27,7 @@ check_internet() {
     return $?
 }
 
-# Hàm xử lý Backup dữ liệu
+# Hàm xử lý Backup dữ liệu & Tự động Push GitHub
 do_backup() {
     echo -e "${BLUE}\n[*] Đang thực hiện backup dữ liệu...${RESET}"
     
@@ -41,25 +41,33 @@ do_backup() {
     # Tiến hành nén thư mục data
     if tar -czf "$BACKUP_FILE" -C "$PROJECT_DIR" data 2>/dev/null; then
         echo -e "${GREEN}[OK] Đã tạo bản nén thành công!${RESET}"
-        echo "[$(date +"%Y-%m-%d %H:%M:%S")] SUCCESS: Backup created." >> "$LOG_FILE"
+        echo "[$(date +"%Y-%m-%d %H:%M:%S")] SUCCESS: Local backup created." >> "$LOG_FILE"
     else
         echo -e "${RED}[LỖI] Không thể nén dữ liệu!${RESET}"
         echo "[$(date +"%Y-%m-%d %H:%M:%S")] FAILED: Backup failed." >> "$LOG_FILE"
         return 1
     fi
 
-    # BONUS 1: Giữ lại đúng 5 file mới nhất
+    # BONUS 1: Giữ lại đúng 5 file mới nhất (Xóa file cũ)
     cd "$BACKUP_DIR" && ls -t | tail -n +6 | xargs rm -f 2>/dev/null
-    echo -e "${GREEN}[OK] Đã tự động dọn dẹp (Chỉ giữ 5 bản mới nhất).${RESET}"
+    echo -e "${GREEN}[OK] Đã dọn dẹp thư mục backups (Chỉ giữ 5 bản mới nhất).${RESET}"
     
-    # BONUS 2: Tự động push lên GitHub nếu có mạng
+    # BONUS 2: Tự động push cả code, log và bản backup mới lên GitHub
     if check_internet; then
-        echo -e "${BLUE}[*] Đang tự động cập nhật lên GitHub...${RESET}"
+        echo -e "${BLUE}[*] Đang tự động push dữ liệu lên GitHub...${RESET}"
         cd "$PROJECT_DIR"
-        git add . && git commit -m "Auto-backup: $TIMESTAMP" && git push origin main &> /dev/null
-        echo -e "${GREEN}[OK] Đã đồng bộ với GitHub thành công!${RESET}"
+        git add . && git commit -m "Auto-backup & Sync: $TIMESTAMP" && git push origin main &> /dev/null
+        
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}[OK] Đã đồng bộ với GitHub thành công!${RESET}"
+            echo "[$(date +"%Y-%m-%d %H:%M:%S")] SUCCESS: Pushed to GitHub." >> "$LOG_FILE"
+        else
+            echo -e "${RED}[LỖI] Git push thất bại! Kiểm tra lại token/quyền truy cập.${RESET}"
+            echo "[$(date +"%Y-%m-%d %H:%M:%S")] FAILED: Git push failed." >> "$LOG_FILE"
+        fi
     else
         echo -e "${YELLOW}[!] Không có Internet, bỏ qua bước push GitHub.${RESET}"
+        echo "[$(date +"%Y-%m-%d %H:%M:%S")] WARNING: No internet to push GitHub." >> "$LOG_FILE"
     fi
 }
 
@@ -67,20 +75,18 @@ do_backup() {
 # 3. ĐIỀU HƯỚNG CHẠY TỰ ĐỘNG HOẶC MỞ MENU
 # ==========================================
 
-# Kiểm tra nếu Script không được chạy từ Terminal (tức là được gọi từ Cronjob chạy ngầm)
-# [ ! -t 0 ] nghĩa là "Không có tương tác bàn phím (Standard Input không phải Terminal)"
+# Nếu Cronjob chạy ngầm (Không có tương tác bàn phím)
 if [ ! -t 0 ]; then
-    # Chạy trực tiếp hàm backup mà không hiện Menu để tránh bị kẹt
     do_backup
     exit 0
 fi
 
-# Nếu người dùng mở bằng tay từ Terminal, hiển thị giao diện Menu bình thường
+# Nếu người dùng mở trực tiếp bằng Terminal, hiển thị Menu
 while true; do
     echo -e "\n${BLUE}=========================================${RESET}"
     echo -e "${GREEN}        HỆ THỐNG QUẢN LÝ BACKUP          ${RESET}"
     echo -e "${BLUE}=========================================${RESET}"
-    echo -e " [1] Tiến hành Backup dữ liệu ngay"
+    echo -e " [1] Tiến hành Backup dữ liệu & Push GitHub"
     echo -e " [2] Xem danh sách file backup hiện có"
     echo -e " [3] Xem lịch sử Log hệ thống"
     echo -e " [4] Kiểm tra kết nối Internet"
@@ -98,7 +104,7 @@ while true; do
             [ -f "$LOG_FILE" ] && cat "$LOG_FILE" || echo -e "${RED}Chưa có log.${RESET}"
             ;;
         4)  if check_internet; then
-                echo -e "${GREEN}\n[OK] Kết nối Internet: Tốt!${RESET}"
+                echo -e "${GREEN}\n[OK] Kết nối Internet: Hoạt động!${RESET}"
             else
                 echo -e "${RED}\n[LỖI] Thiết bị chưa kết nối Internet!${RESET}"
             fi
