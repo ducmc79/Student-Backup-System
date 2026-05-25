@@ -10,7 +10,7 @@ DATA_DIR="$PROJECT_DIR/data"
 BACKUP_DIR="$PROJECT_DIR/backups"
 LOG_FILE="$PROJECT_DIR/logs/backup.log"
 
-# Mã màu Terminal (Dùng chữ đậm cho dễ nhìn)
+# Mã màu Terminal
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
@@ -34,7 +34,7 @@ do_backup() {
     # Tạo thư mục backups nếu chưa có
     mkdir -p "$BACKUP_DIR"
 
-    # Đặt tên file theo ngày_giờ (Ví dụ: backup_20260525_083000.tar.gz)
+    # Đặt tên file theo ngày_giờ
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
     BACKUP_FILE="$BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
 
@@ -48,7 +48,7 @@ do_backup() {
         return 1
     fi
 
-    # BONUS 1: Giữ lại đúng 5 file mới nhất (Xóa các file cũ hơn)
+    # BONUS 1: Giữ lại đúng 5 file mới nhất
     cd "$BACKUP_DIR" && ls -t | tail -n +6 | xargs rm -f 2>/dev/null
     echo -e "${GREEN}[OK] Đã tự động dọn dẹp (Chỉ giữ 5 bản mới nhất).${RESET}"
     
@@ -64,13 +64,23 @@ do_backup() {
 }
 
 # ==========================================
-# 3. GIAO DIỆN MENU CHÍNH
+# 3. ĐIỀU HƯỚNG CHẠY TỰ ĐỘNG HOẶC MỞ MENU
 # ==========================================
+
+# Kiểm tra nếu Script không được chạy từ Terminal (tức là được gọi từ Cronjob chạy ngầm)
+# [ ! -t 0 ] nghĩa là "Không có tương tác bàn phím (Standard Input không phải Terminal)"
+if [ ! -t 0 ]; then
+    # Chạy trực tiếp hàm backup mà không hiện Menu để tránh bị kẹt
+    do_backup
+    exit 0
+fi
+
+# Nếu người dùng mở bằng tay từ Terminal, hiển thị giao diện Menu bình thường
 while true; do
     echo -e "\n${BLUE}=========================================${RESET}"
     echo -e "${GREEN}        HỆ THỐNG QUẢN LÝ BACKUP          ${RESET}"
     echo -e "${BLUE}=========================================${RESET}"
-    echo -e " [1] Tiến hành Backup dữ liệu"
+    echo -e " [1] Tiến hành Backup dữ liệu ngay"
     echo -e " [2] Xem danh sách file backup hiện có"
     echo -e " [3] Xem lịch sử Log hệ thống"
     echo -e " [4] Kiểm tra kết nối Internet"
